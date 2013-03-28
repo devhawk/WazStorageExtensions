@@ -5,10 +5,29 @@ using System.Collections.Generic;
 using System.Data.Services.Client;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DevHawk.WazStorageExtensions
 {
+    public static class TaskFactoryExtensions
+    {
+        public static Task<T> FromCancellableAsync<T>(this TaskFactory factory, Func<AsyncCallback, object, ICancellableAsyncResult> begin, Func<IAsyncResult, T> end, CancellationToken cancellationToken)
+        {
+            Func<AsyncCallback, Object, IAsyncResult> f = (cb, ob) =>
+                {
+                    var icr = begin(cb, ob);
+
+                    if (cancellationToken != null)
+                        cancellationToken.Register(icr.Cancel);
+
+                    return icr;
+                };
+
+            return factory.FromAsync<T>(f, end, null);
+        }
+    }
+
     public static class TableExtensions
     {
         public static Task<TableQuerySegment<T>> ExecuteQuerySegmentedAsync<T>(this CloudTable table, TableQuery query, TableContinuationToken token = null)
